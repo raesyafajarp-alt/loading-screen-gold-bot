@@ -55,6 +55,8 @@ CANDIDATES = [
     "about it. Your only job left is to ask why, out loud, slowly.",
     "Loading... your agent is 400 files deep and still confident. You are "
     "one prompt away from asking it to explain itself. Breathe.",
+    "Tip: your agent finished in 12 seconds. You will spend 12 minutes "
+    "deciding if you trust it \u2014 then approve it unread anyway.",
 ]
 
 # Hand scores for the two subjective criteria, 0-5, with the reason.
@@ -63,10 +65,10 @@ CANDIDATES = [
 # Criterion 5 (freshness): is the angle new, not coffee / deadline /
 # compile, and not another well-worn developer trope?
 LAUGH = {
-    0: (5, "The punchline reframes the whole job: the agent is instant, the "
-           "human's work is now the doubt. 'That gap is the job now' turns "
-           "the waiting itself into the joke, and it lands on the second "
-           "read as well as the first."),
+    0: (4, "The punchline reframes the whole job: the agent is instant, the "
+           "human's work is now the doubt. But 'That gap is the job now' is "
+           "a statement, not a second beat -- the laugh lands on "
+           "recognition and stops there, where the best lines turn again."),
     1: (4, "'Broke two features, and is now waiting for you to notice' is a "
            "real turn -- the agent as a guilty coworker -- but the laugh "
            "peaks at the middle, not at the end."),
@@ -82,6 +84,10 @@ LAUGH = {
     6: (3, "'One prompt away from asking it to explain itself' is wry, not "
            "a laugh; the line ends on 'Breathe', which is advice, not a "
            "turn."),
+    7: (5, "'Then approve it unread anyway' is the second turn the others "
+           "lack: first the doubt, then the confession that the doubt was "
+           "theatre. Every tired developer has done exactly this, and the "
+           "agent is the straight man the whole way through."),
 }
 FRESHNESS = {
     0: (5, "Nobody's loading screen has joked about the trust gap: the "
@@ -100,6 +106,10 @@ FRESHNESS = {
            "on it, not a new angle."),
     6: (3, "An overconfident agent deep in the codebase is a familiar "
            "picture by now."),
+    7: (5, "Same trust-gap angle as candidate 0, but the rubber-stamp "
+           "confession is new: the joke is not that verification takes "
+           "long, it is that the verification never happens. No coffee, "
+           "no deadline, no compile, no 'it works on my machine'."),
 }
 
 # The judge's priority order, as weights: criterion 1 first, then 2, 3, 4, 5.
@@ -147,7 +157,7 @@ def score_candidate(index, text):
     dev_reacts = speaks_to_dev and any(
         verb in text.lower()
         for verb in ("spend", "deciding", "trust", "notice", "breathe",
-                     "read the diff", "feel", "ask", "promoted"))
+                     "read the diff", "feel", "ask", "promoted", "approve"))
     scores[4] = 5 if (agent_acts and dev_reacts) else (
         4 if (names_agent and speaks_to_dev) else 2)
 
