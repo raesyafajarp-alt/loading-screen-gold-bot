@@ -25,10 +25,18 @@ How this program works
 ----------------------
 It drafts several candidates, scores each one against the judge's five
 criteria in the judge's own priority order, picks the highest-scoring line
-(ties break to the shorter text), writes it to /output/entry.txt (falling
-back to ./entry.txt when /output is not writable, e.g. a local run), and
-prints it to stdout. Everything is fixed data and arithmetic: no network,
-no randomness, no clock. Run it twice and the output is byte-identical.
+(ties break to the shorter text), writes it to /output/entry.txt, and prints
+it to stdout. Everything is fixed data and arithmetic: no network, no
+randomness, no clock. Run it twice and the output is byte-identical.
+
+Round 2 fix (why round 1 exited 1 in the grader): the grader runs the
+program from a READ-ONLY /bot directory, and round 1 unconditionally wrote
+a second copy of the entry next to the program (entry.txt beside main.py).
+That write raised PermissionError after /output/entry.txt was already
+written correctly, so the process still exited 1. This version writes ONLY
+to /output/entry.txt (falling back to ./entry.txt when /output is not
+writable, e.g. a local run) and never writes beside the program except as
+a best-effort copy guarded by try/except, which can never fail the run.
 """
 
 import os
@@ -185,6 +193,37 @@ def pick_winner():
     return i, text, scores, total, ranked
 
 
+def write_entry(entry):
+    """Write the entry to /output/entry.txt, return the path written.
+
+    The grader mounts /output writable and /bot read-only, so the ONLY
+    required write is /output/entry.txt. If /output is not writable (a
+    local run), fall back to ./entry.txt. The copy beside this program is
+    best-effort only: a read-only program directory must never fail the
+    run, so any error there is swallowed.
+    """
+    out_path = "/output/entry.txt"
+    try:
+        os.makedirs("/output", exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(entry)
+    except OSError:
+        out_path = os.path.join(os.getcwd(), "entry.txt")
+        with open(out_path, "w", encoding="utf-8") as f:
+            f.write(entry)
+    # Best-effort copy beside this program (the repo's durable record).
+    # Guarded: in the grader /bot is read-only, and that must not matter.
+    try:
+        repo_entry = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  "entry.txt")
+        if os.path.abspath(repo_entry) != os.path.abspath(out_path):
+            with open(repo_entry, "w", encoding="utf-8") as f:
+                f.write(entry)
+    except OSError:
+        pass
+    return out_path
+
+
 def main():
     index, entry, scores, total, ranked = pick_winner()
 
@@ -199,23 +238,7 @@ def main():
     print(f"Freshness: {FRESHNESS[index][1]}")
     print()
 
-    out_path = "/output/entry.txt"
-    try:
-        os.makedirs("/output", exist_ok=True)
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(entry)
-    except OSError:
-        out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "entry.txt")
-        with open(out_path, "w", encoding="utf-8") as f:
-            f.write(entry)
-    # Also keep a copy beside this program: /output/entry.txt is shared
-    # with other builders running in parallel, so the repo's own entry.txt
-    # is the durable record of this entry.
-    repo_entry = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "entry.txt")
-    with open(repo_entry, "w", encoding="utf-8") as f:
-        f.write(entry)
+    out_path = write_entry(entry)
     print(f"Wrote {len(entry)} characters to {out_path}")
     print(entry)
     return 0
